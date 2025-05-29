@@ -25,6 +25,7 @@ if __name__ == "__main__":
     parser.add_argument("--add", nargs=2, action='append', metavar=("item", "amount"), 
                       help="Add a spending item with its amount. Can be used multiple times.")
     parser.add_argument("--view", action="store_true", help="View all spending items.")
+    parser.add_argument("--currency-rate", type=float, help="Currency conversion rate for viewing amounts (e.g., 0.85 for USD to EUR).", default=1.0)
     args = parser.parse_args()
     
     spendings = load_spendings()
@@ -46,11 +47,17 @@ if __name__ == "__main__":
     
     if args.view:
         if spendings:
-            total = sum(spendings.values())
-            print("Current spendings:")
+            currency_rate = args.currency_rate
+            conversion_note = f" (converted at rate {currency_rate})" if currency_rate != 1.0 else ""
+
+            total = sum(spendings.values()) * currency_rate
+            print(f"Current spendings{conversion_note}:")
+
             for item, amount in spendings.items():
-                print(f"{item}: ${amount:.2f}")
-            print(f"Total: ${total:.2f}")
+                converted_amount = amount * currency_rate
+                print(f"{item}: {converted_amount:.2f}")
+
+            print(f"Total: {total:.2f}")
         else:
             print("No spendings recorded.")
     
