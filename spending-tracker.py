@@ -51,13 +51,18 @@ if __name__ == "__main__":
             conversion_note = f" (converted at rate {currency_rate})" if currency_rate != 1.0 else ""
 
             total = sum(spendings.values()) * currency_rate
-            print(f"Current spendings{conversion_note}:")
+            print(f"\nCurrent spendings{conversion_note}:")
+
+            # Find longest item name for formatting
+            max_length = max(len(item) for item in spendings.keys())
 
             for item, amount in spendings.items():
+                spaces = ' ' * (max_length - len(item))
                 converted_amount = amount * currency_rate
-                print(f"{item}: {converted_amount:.2f}")
+                print(f"{item}:{spaces} {converted_amount:.2f}")
 
-            print(f"Total: {total:.2f}")
+            print("\n-----------------")
+            print(f"Total: {total:.2f}\n")
         else:
             print("No spendings recorded.")
     
