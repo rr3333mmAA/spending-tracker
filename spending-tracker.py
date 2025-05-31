@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import datetime
 
 """
 Example: python3 spending-tracker.py --add "Coffee" 3.50 --add "Lunch" 12.00 --view 
@@ -8,17 +9,56 @@ Example: python3 spending-tracker.py --add "Coffee" 3.50 --add "Lunch" 12.00 --v
 
 STORAGE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "spendings.json")
 
-def load_spendings():
-    """Load spendings from the storage file."""
-    if os.path.exists(STORAGE_FILE):
-        with open(STORAGE_FILE, 'r') as f:
-            return json.load(f)
-    return {}
+class Spending:
+    def __init__(self, item, amount, date=None):
+        self.item = item
+        self.amount = amount
+        self.date = date or datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    def to_dict(self):
+        return {
+            "item": self.item,
+            "amount": self.amount,
+            "date": self.date
+        }
+    
+class SpendingTracker:
+    def __init__(self):
+        self.spendings: list[Spending] = []
 
-def save_spendings(spendings):
-    """Save spendings to the storage file."""
-    with open(STORAGE_FILE, 'w') as f:
-        json.dump(spendings, f, indent=2)
+    def load_spendings(self):
+        """Load spendings from the storage file."""
+        if os.path.exists(STORAGE_FILE):
+            with open(STORAGE_FILE, 'r') as f:
+                data = json.load(f)
+                self.spendings = [Spending(**item) for item in data]
+        else:
+            self.spendings = []
+    
+    def save_spendings(self):
+        """Save spendings to the storage file."""
+        with open(STORAGE_FILE, 'w') as f:
+            json.dump([spending.to_dict() for spending in self.spendings], f, indent=4)
+    
+    def append_spending(self, item, amount):
+        """Append a new spending item."""
+        spending = Spending(item, amount)
+        self.spendings.append(spending)
+        self.save_spendings()
+
+    def get_total_spendings(self):
+        """Calculate the total amount of spendings."""
+        return sum(spending.amount for spending in self.spendings)
+
+    def overview(self, currency_rate=1.0):
+        conversion_note = f" (converted at rate {currency_rate})" if currency_rate != 1.0 else ""
+        overview = f"\nCurrent spendings{conversion_note}:\n"
+        for spending in self.spendings:
+            converted_amount = spending.amount * currency_rate
+            overview += f"{spending.item}: {converted_amount:.2f} (on {spending.date})\n"
+        total = self.get_total_spendings() * currency_rate
+        overview += f"\nTotal spendings: {total:.2f}\n"
+        return overview
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="A simple command-line tool for tracking spendings.")
@@ -28,43 +68,21 @@ if __name__ == "__main__":
     parser.add_argument("--currency-rate", type=float, help="Currency conversion rate for viewing amounts (e.g., 0.85 for USD to EUR).", default=1.0)
     args = parser.parse_args()
     
-    spendings = load_spendings()
+    tracker = SpendingTracker()
+    tracker.load_spendings()
     
     if args.add:
         for item_amount in args.add:
             item, amount = item_amount
             try:
                 amount = float(amount)
-                if item in spendings:
-                    spendings[item] += amount
-                else:
-                    spendings[item] = amount
-                print(f"Added {item} with amount {amount:.2f}.")
+                tracker.append_spending(item, amount)
+                print(f"Added spending: {item} - {amount:.2f}")
             except ValueError:
-                print(f"Invalid amount for {item}. Please enter a numeric value.")
-        
-        save_spendings(spendings)
-    
+                print(f"Invalid amount '{amount}' for item '{item}'. Please provide a valid number.")
+
     if args.view:
-        if spendings:
-            currency_rate = args.currency_rate
-            conversion_note = f" (converted at rate {currency_rate})" if currency_rate != 1.0 else ""
-
-            total = sum(spendings.values()) * currency_rate
-            print(f"\nCurrent spendings{conversion_note}:")
-
-            # Find longest item name for formatting
-            max_length = max(len(item) for item in spendings.keys())
-
-            for item, amount in spendings.items():
-                spaces = ' ' * (max_length - len(item))
-                converted_amount = amount * currency_rate
-                print(f"{item}:{spaces} {converted_amount:.2f}")
-
-            print("\n-----------------")
-            print(f"Total: {total:.2f}\n")
-        else:
-            print("No spendings recorded.")
-    
+        print(tracker.overview(args.currency_rate))
+        
     if not args.add and not args.view:
         parser.print_help()
