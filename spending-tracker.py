@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 import datetime
+import uuid
 
 """
 Example: python3 spending-tracker.py --add "Coffee" 3.50 --add "Lunch" 12.00 --view 
@@ -10,13 +11,15 @@ Example: python3 spending-tracker.py --add "Coffee" 3.50 --add "Lunch" 12.00 --v
 STORAGE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "spendings.json")
 
 class Spending:
-    def __init__(self, item, amount, date=None):
+    def __init__(self, item, amount, id=None, date=None):
+        self.id = id or str(uuid.uuid4())
         self.item = item
         self.amount = amount
         self.date = date or datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     def to_dict(self):
         return {
+            "id": self.id,
             "item": self.item,
             "amount": self.amount,
             "date": self.date
