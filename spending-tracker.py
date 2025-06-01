@@ -63,12 +63,20 @@ class SpendingTracker:
         overview += f"\nTotal spendings: {total:.2f}\n"
         return overview
 
+    def delete_spending(self, spending_id):
+        """Delete a spending item by its ID."""
+        self.spendings = [spending for spending in self.spendings if spending.id != spending_id]
+        self.save_spendings()
+        print(f"Spending with ID {spending_id} has been deleted.")
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="A simple command-line tool for tracking spendings.")
     parser.add_argument("--add", nargs=2, action='append', metavar=("item", "amount"), 
                       help="Add a spending item with its amount. Can be used multiple times.")
     parser.add_argument("--view", action="store_true", help="View all spending items.")
     parser.add_argument("--currency-rate", type=float, help="Currency conversion rate for viewing amounts (e.g., 0.85 for USD to EUR).", default=1.0)
+    parser.add_argument("--delete", nargs=1, metavar="id",
+                      help="Delete a spending item by its ID. Provide the ID as an argument.")
     args = parser.parse_args()
     
     tracker = SpendingTracker()
@@ -84,8 +92,15 @@ if __name__ == "__main__":
             except ValueError:
                 print(f"Invalid amount '{amount}' for item '{item}'. Please provide a valid number.")
 
+    if args.delete:
+        spending_id = args.delete[0]
+        tracker.delete_spending(spending_id)
+    else:
+        print("No spending item deleted. Use --delete <id> to delete a specific item.")
+    
+
     if args.view:
         print(tracker.overview(args.currency_rate))
-        
-    if not args.add and not args.view:
+
+    if not args.add and not args.view and not args.delete:
         parser.print_help()
