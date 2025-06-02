@@ -5,26 +5,29 @@ import datetime
 import uuid
 
 """
-Example: python3 spending-tracker.py --add "Coffee" 3.50 --add "Lunch" 12.00 --view 
+Example usage:
+python spending-tracker.py add "Coffee" 3.50
 """
 
 STORAGE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "spendings.json")
 
 class Spending:
-    def __init__(self, item, amount, id=None, date=None):
+    def __init__(self, item, amount, category="Other", id=None, date=None):
         self.id = id or str(uuid.uuid4())
         self.item = item
         self.amount = amount
+        self.category = category
         self.date = date or datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
+
     def to_dict(self):
         return {
             "id": self.id,
             "item": self.item,
             "amount": self.amount,
+            "category": self.category,
             "date": self.date
         }
-    
+
 class SpendingTracker:
     def __init__(self):
         self.spendings: list[Spending] = []
@@ -42,10 +45,10 @@ class SpendingTracker:
         """Save spendings to the storage file."""
         with open(STORAGE_FILE, 'w') as f:
             json.dump([spending.to_dict() for spending in self.spendings], f, indent=4)
-    
-    def append_spending(self, item, amount):
+
+    def append_spending(self, item, amount, category="Other", date=None):
         """Append a new spending item."""
-        spending = Spending(item, amount)
+        spending = Spending(item, amount, category=category, date=date)
         self.spendings.append(spending)
         self.save_spendings()
 
@@ -71,36 +74,57 @@ class SpendingTracker:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="A simple command-line tool for tracking spendings.")
-    parser.add_argument("--add", nargs=2, action='append', metavar=("item", "amount"), 
-                      help="Add a spending item with its amount. Can be used multiple times.")
-    parser.add_argument("--view", action="store_true", help="View all spending items.")
-    parser.add_argument("--currency-rate", type=float, help="Currency conversion rate for viewing amounts (e.g., 0.85 for USD to EUR).", default=1.0)
-    parser.add_argument("--delete", nargs=1, metavar="id",
-                      help="Delete a spending item by its ID. Provide the ID as an argument.")
+    subparsers = parser.add_subparsers(dest="command")
+
+    # ---- Add command ----
+    add_parser = subparsers.add_parser("add", help="Add a spending entry.")
+    add_parser.add_argument("item", help="Item description, e.g. 'Coffee'")
+    add_parser.add_argument("amount", type=float, help="Amount spent (numeric).")
+    add_parser.add_argument("--category", default="Other",
+                            help="Category (default: Other).")
+    add_parser.add_argument("--date", help="Date (YYYY-MM-DD). Defaults to today.")
+
+    # ---- List command ----
+    list_parser = subparsers.add_parser("list", help="List spending entries.")
+    list_parser.add_argument("--currency-rate", type=float, default=1.0,
+                            help="Currency conversion rate (default: 1.0).")
+    # list_parser.add_argument("--from", dest="date_from", help="Start date YYYY-MM-DD")
+    # list_parser.add_argument("--to", dest="date_to", help="End date YYYY-MM-DD")
+    # list_parser.add_argument("--category", help="Filter by category")
+    # list_parser.add_argument("--all", action="store_true", help="Show all entries (ignore date).")
+
+    # ---- Delete command ----
+    del_parser = subparsers.add_parser("delete", help="Delete an entry by ID.")
+    del_parser.add_argument("id", type=int, help="ID of the entry to delete.")
+
     args = parser.parse_args()
     
     tracker = SpendingTracker()
     tracker.load_spendings()
-    
-    if args.add:
-        for item_amount in args.add:
-            item, amount = item_amount
+
+    if args.command == "add":
+        # Convert date to datetime object if provided
+        date = None
+        if args.date:
             try:
-                amount = float(amount)
-                tracker.append_spending(item, amount)
-                print(f"Added spending: {item} - {amount:.2f}")
+                date = datetime.datetime.strptime(args.date, "%Y-%m-%d").strftime("%Y-%m-%d %H:%M:%S")
             except ValueError:
-                print(f"Invalid amount '{amount}' for item '{item}'. Please provide a valid number.")
+                print("Invalid date format. Please use YYYY-MM-DD.")
+                exit(1)
+        tracker.append_spending(args.item, args.amount, category=args.category, date=date)
 
-    if args.delete:
-        spending_id = args.delete[0]
-        tracker.delete_spending(spending_id)
+    elif args.command == "list":
+        if tracker.spendings:
+            print(tracker.overview(currency_rate=args.currency_rate))
+        else:
+            print("No spendings recorded yet.")
+
+    elif args.command == "delete":
+        if tracker.spendings:
+            tracker.delete_spending(args.id)
+        else:
+            print("No spendings recorded yet.")
+
     else:
-        print("No spending item deleted. Use --delete <id> to delete a specific item.")
-    
-
-    if args.view:
-        print(tracker.overview(args.currency_rate))
-
-    if not args.add and not args.view and not args.delete:
         parser.print_help()
+        exit(1)
