@@ -56,12 +56,14 @@ class SpendingTracker:
         """Calculate the total amount of spendings."""
         return sum(spending.amount for spending in self.spendings)
 
-    def overview(self, currency_rate=1.0):
+    def overview(self, currency_rate=1.0, category=None):
         conversion_note = f" (converted at rate {currency_rate})" if currency_rate != 1.0 else ""
         overview = f"\nCurrent spendings{conversion_note}:\n"
         for spending in self.spendings:
+            if category and spending.category != category:
+                continue
             converted_amount = spending.amount * currency_rate
-            overview += f"{spending.item}: {converted_amount:.2f} (on {spending.date})\n"
+            overview += f"{spending.item}: {converted_amount:.2f} ({spending.category}, on {spending.date})\n"
         total = self.get_total_spendings() * currency_rate
         overview += f"\nTotal spendings: {total:.2f}\n"
         return overview
@@ -90,7 +92,7 @@ if __name__ == "__main__":
                             help="Currency conversion rate (default: 1.0).")
     # list_parser.add_argument("--from", dest="date_from", help="Start date YYYY-MM-DD")
     # list_parser.add_argument("--to", dest="date_to", help="End date YYYY-MM-DD")
-    # list_parser.add_argument("--category", help="Filter by category")
+    list_parser.add_argument("--category", help="Filter by category")
     # list_parser.add_argument("--all", action="store_true", help="Show all entries (ignore date).")
 
     # ---- Delete command ----
@@ -115,7 +117,7 @@ if __name__ == "__main__":
 
     elif args.command == "list":
         if tracker.spendings:
-            print(tracker.overview(currency_rate=args.currency_rate))
+            print(tracker.overview(currency_rate=args.currency_rate, category=args.category))
         else:
             print("No spendings recorded yet.")
 
