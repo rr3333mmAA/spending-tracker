@@ -56,11 +56,16 @@ class SpendingTracker:
         """Calculate the total amount of spendings."""
         return sum(spending.amount for spending in self.spendings)
 
-    def overview(self, currency_rate=1.0, category=None):
+    def overview(self, from_date=None, to_date=None, currency_rate=1.0, category=None):
         conversion_note = f" (converted at rate {currency_rate})" if currency_rate != 1.0 else ""
         overview = f"\nCurrent spendings{conversion_note}:\n"
         for spending in self.spendings:
+            spending.date = datetime.datetime.strptime(spending.date, "%Y-%m-%d %H:%M:%S")
             if category and spending.category != category:
+                continue
+            if from_date and spending.date < from_date:
+                continue
+            if to_date and spending.date > to_date:
                 continue
             converted_amount = spending.amount * currency_rate
             overview += f"{spending.item}: {converted_amount:.2f} ({spending.category}, on {spending.date})\n"
@@ -90,8 +95,8 @@ if __name__ == "__main__":
     list_parser = subparsers.add_parser("list", help="List spending entries.")
     list_parser.add_argument("--currency-rate", type=float, default=1.0,
                             help="Currency conversion rate (default: 1.0).")
-    # list_parser.add_argument("--from", dest="date_from", help="Start date YYYY-MM-DD")
-    # list_parser.add_argument("--to", dest="date_to", help="End date YYYY-MM-DD")
+    list_parser.add_argument("--from", dest="date_from", help="Start date YYYY-MM-DD")
+    list_parser.add_argument("--to", dest="date_to", help="End date YYYY-MM-DD")
     list_parser.add_argument("--category", help="Filter by category")
     # list_parser.add_argument("--all", action="store_true", help="Show all entries (ignore date).")
 
@@ -117,7 +122,9 @@ if __name__ == "__main__":
 
     elif args.command == "list":
         if tracker.spendings:
-            print(tracker.overview(currency_rate=args.currency_rate, category=args.category))
+            from_date = datetime.datetime.strptime(args.date_from, "%Y-%m-%d") if args.date_from else None
+            to_date = datetime.datetime.strptime(args.date_to, "%Y-%m-%d") if args.date_to else None
+            print(tracker.overview(from_date=from_date, to_date=to_date, currency_rate=args.currency_rate, category=args.category))
         else:
             print("No spendings recorded yet.")
 
