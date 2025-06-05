@@ -12,10 +12,11 @@ python spending-tracker.py add "Coffee" 3.50
 STORAGE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "spendings.json")
 
 class Spending:
-    def __init__(self, item, amount, category="Other", id=None, date=None):
+    def __init__(self, item, amount, currency="usd", category="Other", id=None, date=None):
         self.id = id or str(uuid.uuid4())
         self.item = item
         self.amount = amount
+        self.currency = currency
         self.category = category
         self.date = date or datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -24,6 +25,7 @@ class Spending:
             "id": self.id,
             "item": self.item,
             "amount": self.amount,
+            "currency": self.currency,
             "category": self.category,
             "date": self.date
         }
@@ -46,19 +48,23 @@ class SpendingTracker:
         with open(STORAGE_FILE, 'w') as f:
             json.dump([spending.to_dict() for spending in self.spendings], f, indent=4)
 
-    def append_spending(self, item, amount, category="Other", date=None):
+    def append_spending(self, item, amount, currency="usd", category="Other", date=None):
         """Append a new spending item."""
-        spending = Spending(item, amount, category=category, date=date)
+        spending = Spending(item, amount, currency=currency, category=category, date=date)
         self.spendings.append(spending)
         self.save_spendings()
 
     def get_total_spendings(self):
         """Calculate the total amount of spendings."""
-        return sum(spending.amount for spending in self.spendings)
+        total_spendings = dict()
+        for spending in self.spendings:
+            if spending.currency not in total_spendings:
+                total_spendings[spending.currency] = 0
+            total_spendings[spending.currency] += spending.amount
+        return total_spendings
 
-    def overview(self, from_date=None, to_date=None, currency_rate=1.0, category=None):
-        conversion_note = f" (converted at rate {currency_rate})" if currency_rate != 1.0 else ""
-        overview = f"\nCurrent spendings{conversion_note}:\n"
+    def overview(self, from_date=None, to_date=None, category=None):
+        overview = f"\nCurrent spendings:\n"
         for spending in self.spendings:
             spending.date = datetime.datetime.strptime(spending.date, "%Y-%m-%d %H:%M:%S")
             if category and spending.category != category:
@@ -67,10 +73,12 @@ class SpendingTracker:
                 continue
             if to_date and spending.date > to_date:
                 continue
-            converted_amount = spending.amount * currency_rate
-            overview += f"{spending.item}: {converted_amount:.2f} ({spending.category}, on {spending.date})\n"
-        total = self.get_total_spendings() * currency_rate
-        overview += f"\nTotal spendings: {total:.2f}\n"
+            overview += f"{spending.item}: {spending.amount:.2f} {spending.currency} ({spending.category}, on {spending.date})\n"
+        total = self.get_total_spendings()
+        overview += "\nTotal spendings: "
+        for currency, amount in total.items():
+            overview += f"{amount:.2f} {currency}, "
+        overview = overview[:-2] + "\n"
         return overview
 
     def delete_spending(self, spending_id):
@@ -87,18 +95,17 @@ if __name__ == "__main__":
     add_parser = subparsers.add_parser("add", help="Add a spending entry.")
     add_parser.add_argument("item", help="Item description, e.g. 'Coffee'")
     add_parser.add_argument("amount", type=float, help="Amount spent (numeric).")
+    add_parser.add_argument("--currency", default="usd",
+                            help="Currency (default: usd).")
     add_parser.add_argument("--category", default="Other",
                             help="Category (default: Other).")
     add_parser.add_argument("--date", help="Date (YYYY-MM-DD). Defaults to today.")
 
     # ---- List command ----
     list_parser = subparsers.add_parser("list", help="List spending entries.")
-    list_parser.add_argument("--currency-rate", type=float, default=1.0,
-                            help="Currency conversion rate (default: 1.0).")
     list_parser.add_argument("--from", dest="date_from", help="Start date YYYY-MM-DD")
     list_parser.add_argument("--to", dest="date_to", help="End date YYYY-MM-DD")
     list_parser.add_argument("--category", help="Filter by category")
-    # list_parser.add_argument("--all", action="store_true", help="Show all entries (ignore date).")
 
     # ---- Delete command ----
     del_parser = subparsers.add_parser("delete", help="Delete an entry by ID.")
@@ -118,13 +125,13 @@ if __name__ == "__main__":
             except ValueError:
                 print("Invalid date format. Please use YYYY-MM-DD.")
                 exit(1)
-        tracker.append_spending(args.item, args.amount, category=args.category, date=date)
+        tracker.append_spending(args.item, args.amount, currency=args.currency, category=args.category, date=date)
 
     elif args.command == "list":
         if tracker.spendings:
             from_date = datetime.datetime.strptime(args.date_from, "%Y-%m-%d") if args.date_from else None
             to_date = datetime.datetime.strptime(args.date_to, "%Y-%m-%d") if args.date_to else None
-            print(tracker.overview(from_date=from_date, to_date=to_date, currency_rate=args.currency_rate, category=args.category))
+            print(tracker.overview(from_date=from_date, to_date=to_date, category=args.category))
         else:
             print("No spendings recorded yet.")
 
