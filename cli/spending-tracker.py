@@ -87,6 +87,23 @@ class SpendingTracker:
         self.save_spendings()
         print(f"Spending with ID {spending_id} has been deleted.")
 
+    def edit_spending(self, spending_id, item=None, amount=None, currency=None, category=None):
+        """Edit a spending item by its ID."""
+        for spending in self.spendings:
+            if spending.id == spending_id:
+                if item is not None:
+                    spending.item = item
+                if amount is not None:
+                    spending.amount = amount
+                if currency is not None:
+                    spending.currency = currency
+                if category is not None:
+                    spending.category = category
+                self.save_spendings()
+                print(f"Spending with ID {spending_id} has been updated.")
+                return
+        print(f"No spending found with ID {spending_id}.")
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="A simple command-line tool for tracking spendings.")
     subparsers = parser.add_subparsers(dest="command")
@@ -109,7 +126,15 @@ if __name__ == "__main__":
 
     # ---- Delete command ----
     del_parser = subparsers.add_parser("delete", help="Delete an entry by ID.")
-    del_parser.add_argument("id", type=int, help="ID of the entry to delete.")
+    del_parser.add_argument("id", help="ID of the entry to delete.")
+
+    # ---- Edit command ----
+    edit_parser = subparsers.add_parser("edit", help="Edit an entry by ID.")
+    edit_parser.add_argument("id", help="ID of the entry to edit.")
+    edit_parser.add_argument("--item", help="New item description")
+    edit_parser.add_argument("--amount", type=float, help="New amount spent")
+    edit_parser.add_argument("--currency", help="New currency")
+    edit_parser.add_argument("--category", help="New category")
 
     args = parser.parse_args()
     
@@ -138,6 +163,12 @@ if __name__ == "__main__":
     elif args.command == "delete":
         if tracker.spendings:
             tracker.delete_spending(args.id)
+        else:
+            print("No spendings recorded yet.")
+
+    elif args.command == "edit":
+        if tracker.spendings:
+            tracker.edit_spending(args.id, item=args.item, amount=args.amount, currency=args.currency, category=args.category)
         else:
             print("No spendings recorded yet.")
 
