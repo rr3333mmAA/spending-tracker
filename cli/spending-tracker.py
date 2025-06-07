@@ -104,9 +104,9 @@ class SpendingTracker:
                 return
         print(f"No spending found with ID {spending_id}.")
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="A simple command-line tool for tracking spendings.")
-    subparsers = parser.add_subparsers(dest="command")
+def parser():
+    parser_ = argparse.ArgumentParser(description="A simple command-line tool for tracking spendings.")
+    subparsers = parser_.add_subparsers(dest="command")
 
     # ---- Add command ----
     add_parser = subparsers.add_parser("add", help="Add a spending entry.")
@@ -136,8 +136,12 @@ if __name__ == "__main__":
     edit_parser.add_argument("--currency", help="New currency")
     edit_parser.add_argument("--category", help="New category")
 
-    args = parser.parse_args()
-    
+    return parser_
+
+if __name__ == "__main__":
+    parser_ = parser()
+    args = parser_.parse_args()
+
     tracker = SpendingTracker()
     tracker.load_spendings()
 
@@ -173,5 +177,5 @@ if __name__ == "__main__":
             print("No spendings recorded yet.")
 
     else:
-        parser.print_help()
+        parser_.print_help()
         exit(1)
