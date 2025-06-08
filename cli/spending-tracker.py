@@ -83,7 +83,13 @@ class SpendingTracker:
 
     def delete_spending(self, spending_id):
         """Delete a spending item by its ID."""
-        self.spendings = [spending for spending in self.spendings if spending.id != spending_id]
+        for spending in self.spendings:
+            if spending.id == spending_id:
+                self.spendings.remove(spending)
+                break
+        else:
+            print(f"No spending found with ID {spending_id}.")
+            return
         self.save_spendings()
         print(f"Spending with ID {spending_id} has been deleted.")
 
